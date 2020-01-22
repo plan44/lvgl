@@ -44,6 +44,7 @@ typedef struct
     const lv_style_t * style_knob; /*Style of the knob*/
     int16_t drag_value;            /*Store a temporal value during press until release (Handled by the library)*/
     uint8_t knob_in : 1;           /*1: Draw the knob inside the bar*/
+    uint8_t sharp_indic_edge : 1;  /*1: indicator edge is sharp, not rounded, no borders*/
 } lv_slider_ext_t;
 
 /** Built-in styles of slider*/
@@ -120,6 +121,16 @@ static inline void lv_slider_set_sym(lv_obj_t * slider, bool en)
  *           false: the knob can be out on the edges
  */
 void lv_slider_set_knob_in(lv_obj_t * slider, bool in);
+
+
+/**
+ * Set the 'sharp indicator edge' attribute of a slider
+ * @param slider pointer to slider object
+ * @param sharp true: the indicator is not sized, but sharply clipped to the active area;
+ *              false: normal mode
+ */
+void lv_slider_set_sharp_indic_edge(lv_obj_t * slider, bool sharp);
+
 
 /**
  * Set a style of a slider

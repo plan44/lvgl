@@ -76,6 +76,7 @@ lv_obj_t * lv_slider_create(lv_obj_t * par, const lv_obj_t * copy)
     ext->drag_value = LV_SLIDER_NOT_PRESSED;
     ext->style_knob = &lv_style_pretty;
     ext->knob_in    = 0;
+    ext->sharp_indic_edge = 0;
 
     /*The signal and design functions are not copied so set them here*/
     lv_obj_set_signal_cb(new_slider, lv_slider_signal);
@@ -101,6 +102,7 @@ lv_obj_t * lv_slider_create(lv_obj_t * par, const lv_obj_t * copy)
         lv_slider_ext_t * copy_ext = lv_obj_get_ext_attr(copy);
         ext->style_knob            = copy_ext->style_knob;
         ext->knob_in               = copy_ext->knob_in;
+        ext->sharp_indic_edge      = copy_ext->sharp_indic_edge;
         /*Refresh the style with new signal function*/
         lv_obj_refresh_style(new_slider);
     }
@@ -130,6 +132,27 @@ void lv_slider_set_knob_in(lv_obj_t * slider, bool in)
     ext->knob_in = in == false ? 0 : 1;
     lv_obj_invalidate(slider);
 }
+
+
+/**
+ * Set the 'sharp indicator edge' attribute of a slider
+ * @param slider pointer to slider object
+ * @param sharp true: the indicator is not sized, but sharply clipped to the active area;
+ *              false: normal mode
+ */
+void lv_slider_set_sharp_indic_edge(lv_obj_t * slider, bool sharp)
+{
+    LV_ASSERT_OBJ(slider, LV_OBJX_NAME);
+
+    lv_slider_ext_t * ext = lv_obj_get_ext_attr(slider);
+    if(ext->sharp_indic_edge == sharp) return;
+
+    ext->sharp_indic_edge = sharp == false ? 0 : 1;
+    lv_obj_invalidate(slider);
+}
+
+
+
 
 /**
  * Set a style of a slider
@@ -305,6 +328,7 @@ static bool lv_slider_design(lv_obj_t * slider, const lv_area_t * mask, lv_desig
 
         /*Draw the indicator*/
         lv_area_t area_indic;
+        lv_area_t full_indic;
         lv_area_copy(&area_indic, &area_bg);
 
         /*Be sure at least ver pad/hor pad width indicator will remain*/
@@ -337,6 +361,7 @@ static bool lv_slider_design(lv_obj_t * slider, const lv_area_t * mask, lv_desig
 
         if(slider_w >= slider_h) {
             lv_coord_t indic_w = lv_area_get_width(&area_indic);
+            if (ext->sharp_indic_edge) full_indic = area_indic;
 #if LV_USE_ANIMATION
             if(ext->bar.anim_state != LV_BAR_ANIM_STATE_INV) {
                 /*Calculate the coordinates of anim. start and end*/
@@ -367,9 +392,16 @@ static bool lv_slider_design(lv_obj_t * slider, const lv_area_t * mask, lv_desig
                 }
             }
 
-            /*Draw the indicator but don't draw an ugly 1px wide rectangle on the left on min.
-             * value*/
-            if(area_indic.x1 != area_indic.x2) lv_draw_rect(&area_indic, mask, style_indic, opa_scale);
+            if (ext->sharp_indic_edge) {
+              lv_area_t indic_mask;
+              lv_area_intersect(&indic_mask, mask, &area_indic);
+              if(area_indic.x1 != area_indic.x2) lv_draw_rect(&full_indic, &indic_mask, style_indic, opa_scale);
+            }
+            else {
+              /*Draw the indicator but don't draw an ugly 1px wide rectangle on the left on min.
+               * value*/
+              if(area_indic.x1 != area_indic.x2) lv_draw_rect(&area_indic, mask, style_indic, opa_scale);
+            }
 
         } else {
             lv_coord_t indic_h = lv_area_get_height(&area_indic);
@@ -404,9 +436,17 @@ static bool lv_slider_design(lv_obj_t * slider, const lv_area_t * mask, lv_desig
                 }
             }
 
-            /*Draw the indicator but don't draw an ugly 1px height rectangle on the bottom on min.
-             * value*/
-            if(area_indic.x1 != area_indic.x2) lv_draw_rect(&area_indic, mask, style_indic, opa_scale);
+            if (ext->sharp_indic_edge) {
+              lv_area_t indic_mask;
+              lv_area_intersect(&indic_mask, mask, &area_indic);
+              if(area_indic.y1 != area_indic.y2) lv_draw_rect(&full_indic, &indic_mask, style_indic, opa_scale);
+            }
+            else {
+              /*Draw the indicator but don't draw an ugly 1px height rectangle on the bottom on min.
+               * value*/
+              if(area_indic.y1 != area_indic.y2) lv_draw_rect(&area_indic, mask, style_indic, opa_scale);
+            }
+
         }
 
         /*Before the knob add the border if required*/
@@ -531,15 +571,15 @@ static lv_res_t lv_slider_signal(lv_obj_t * slider, lv_signal_t sign, void * par
         lv_indev_get_point(param, &p);
         int16_t tmp = 0;
         if(w > h) {
-            lv_coord_t knob_w = h;
+            lv_coord_t knob_w = ext->sharp_indic_edge ? 0 : h; /*no knob width correction for sharp edge sliders*/
             p.x -=
-                slider->coords.x1 + h / 2; /*Modify the point to shift with half knob (important on the start and end)*/
+                slider->coords.x1 + knob_w / 2; /*Modify the point to shift with half knob (important on the start and end)*/
             tmp = (int32_t)((int32_t)p.x * (ext->bar.max_value - ext->bar.min_value + 1)) / (w - knob_w);
             tmp += ext->bar.min_value;
         } else {
-            lv_coord_t knob_h = w;
+            lv_coord_t knob_h = ext->sharp_indic_edge ? 0 : w; /*no knob width correction for sharp edge sliders*/
             p.y -=
-                slider->coords.y1 + w / 2; /*Modify the point to shift with half knob (important on the start and end)*/
+                slider->coords.y1 + knob_h / 2; /*Modify the point to shift with half knob (important on the start and end)*/
             tmp = (int32_t)((int32_t)p.y * (ext->bar.max_value - ext->bar.min_value + 1)) / (h - knob_h);
             tmp = ext->bar.max_value - tmp; /*Invert the value: smaller value means higher y*/
         }
