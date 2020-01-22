@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-LittlevGL provides everything you need to create a Graphical User Interface (GUI) on embedded systems with easy-to-use graphical elements, beautiful visual effects and low memory footprint. 
+LittlevGL provides everything you need to create a Graphical User Interface (GUI) on embedded systems with easy-to-use graphical elements, beautiful visual effects and low memory footprint.
 </p>
 
 <h4 align="center">
-<a href="https://littlevgl.com">Website </a> &middot; 
-<a href="https://littlevgl.com/live-demo">Live demo</a> &middot; 
-<a href="https://docs.littlevgl.com/en/html/get-started/pc-simulator.html">Simulator</a> &middot; 
-<a href="https://forum.littlevgl.com">Forum</a> &middot; 
+<a href="https://littlevgl.com">Website </a> &middot;
+<a href="https://littlevgl.com/live-demo">Live demo</a> &middot;
+<a href="https://docs.littlevgl.com/en/html/get-started/pc-simulator.html">Simulator</a> &middot;
+<a href="https://forum.littlevgl.com">Forum</a> &middot;
 <a href="https://docs.littlevgl.com/">Docs</a> &middot;
 <a href="https://blog.littlevgl.com/">Blog</a>
 </h4>
@@ -55,17 +55,18 @@ Basically, every modern controller - which is able to drive a display - is suita
 - 16, 32 or 64 bit microcontroller or processor
 - &gt; 16 MHz clock speed is recommended
 - Flash/ROM: &gt; 64 kB for the very essential components (&gt; 180 kB is recommended)
-- RAM: 
+- RAM:
   - Static RAM usage: ~8..16 kB depending on the used features and objects types
   - Stack: &gt; 2kB (&gt; 4 kB is recommended)
   - Dynamic data (heap): &gt; 4 KB (&gt; 16 kB is recommended if using several objects).
-    Set by `LV_MEM_SIZE` in *lv_conf.h*. 
-  - Display buffer:  &gt; *"Horizontal resolution"* pixels (&gt; 10 &times; *"Horizontal resolution"* is recommended) 
+    Set by `LV_MEM_SIZE` in *lv_conf.h*.
+  - Display buffer:  &gt; *"Horizontal resolution"* pixels (&gt; 10 &times; *"Horizontal resolution"* is recommended)
 -  C99 or newer compiler
 
 *Note that the memory usage might vary depending on the architecture, compiler and build options.*
 
 Just to mention some **platforms**:
+
 - STM32F1, STM32F3, [STM32F4](https://blog.littlevgl.com/2017-07-15/stm32f429_disco_port), [STM32F7](https://github.com/littlevgl/stm32f746_disco_no_os_sw4stm32)
 - Microchip dsPIC33, PIC24, PIC32MX, PIC32MZ
 - NXP Kinetis, LPC, iMX
@@ -76,7 +77,7 @@ Just to mention some **platforms**:
 - Quectell M66
 
 ## Quick start in a simulator
-The easiest way to get started with LittlevGL is to run it in a simulator on your PC without any embedded hardware. 
+The easiest way to get started with LittlevGL is to run it in a simulator on your PC without any embedded hardware.
 
 Choose a project with your favourite IDE:
 
@@ -88,8 +89,8 @@ Choose a project with your favourite IDE:
 
 ## Add LittlevGL to your project
 
-The steps below show how to setup LittlevGL on an embedded system with a display and a touchpad. 
-You can use the [Simulators](https://docs.littlevgl.com/en/html/get-started/pc-simulator) to get ready to use projects which can be run on your PC. 
+The steps below show how to setup LittlevGL on an embedded system with a display and a touchpad.
+You can use the [Simulators](https://docs.littlevgl.com/en/html/get-started/pc-simulator) to get ready to use projects which can be run on your PC.
 
 1. [Download](https://littlevgl.com/download) or [Clone](https://github.com/littlevgl/lvgl) the library
 2. Copy the `lvgl` folder into your project
@@ -110,7 +111,7 @@ lv_disp_drv_init(&disp_drv);          /*Basic initialization*/
 disp_drv.flush_cb = my_disp_flush;    /*Set your driver function*/
 disp_drv.buffer = &disp_buf;          /*Assign the buffer to the display*/
 lv_disp_drv_register(&disp_drv);      /*Finally register the driver*/
-    
+
 void my_disp_flush(lv_disp_t * disp, const lv_area_t * area, lv_color_t * color_p)
 {
     int32_t x, y;
@@ -123,7 +124,7 @@ void my_disp_flush(lv_disp_t * disp, const lv_area_t * area, lv_color_t * color_
 
     lv_disp_flush_ready(disp);         /* Indicate you are ready with the flushing*/
 }
-    
+
 ```
 9. Implement and register a function which can **read an input device**. E.g. for a touch pad:
 ```c
@@ -138,9 +139,9 @@ bool my_touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
     static lv_coord_t last_y = 0;
 
     /*Save the state and save the pressed coordinate*/
-    data->state = touchpad_is_pressed() ? LV_INDEV_STATE_PR : LV_INDEV_STATE_REL; 
+    data->state = touchpad_is_pressed() ? LV_INDEV_STATE_PR : LV_INDEV_STATE_REL;
     if(data->state == LV_INDEV_STATE_PR) touchpad_get_xy(&last_x, &last_y);
-   
+
     /*Set the coordinates (if released use the last pressed coordinates)*/
     data->point.x = last_x;
     data->point.y = last_y;
@@ -148,8 +149,8 @@ bool my_touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
     return false; /*Return `false` because we are not buffering and no more data to read*/
 }
 ```
-10. Call `lv_task_handler()` periodically every few milliseconds in the main `while(1)` loop, in Timer interrupt or in an Operation system task. 
-It will redraw the screen if required, handle input devices etc. 
+10. Call `lv_task_handler()` periodically every few milliseconds in the main `while(1)` loop, in Timer interrupt or in an Operation system task.
+It will redraw the screen if required, handle input devices etc.
 
 
 ## Learn the basics
@@ -162,8 +163,8 @@ Every object has a parent object. The child object moves with the parent and if 
 
 The *screen* are the "root" parents. To get the current screen call `lv_scr_act()`.
 
-You can create a new object with `lv_<type>_create(parent, obj_to_copy)`. It will return an `lv_obj_t *` variable which should be used as a reference to the object to set its parameters. 
-The first parameter is the desired *parent*, te second parameters can be an object to copy (`NULL` is unused). 
+You can create a new object with `lv_<type>_create(parent, obj_to_copy)`. It will return an `lv_obj_t *` variable which should be used as a reference to the object to set its parameters.
+The first parameter is the desired *parent*, te second parameters can be an object to copy (`NULL` is unused).
 For example:
 ```c
 lv_obj_t * slider1 = lv_slider_create(lv_scr_act(), NULL);
@@ -184,7 +185,7 @@ lv_slider_set_value(slider1, 70, LV_ANIM_ON);
 To see the full API visit the documentation of the object types or the related header file (e.g. `lvgl/src/lv_objx/lv_slider.h`).
 
 ### Styles
-Styles can be assigned to the objects to changed their appearance. A style describes the appearance of rectangle-like objects (like a button or slider), texts, images and lines at once. 
+Styles can be assigned to the objects to changed their appearance. A style describes the appearance of rectangle-like objects (like a button or slider), texts, images and lines at once.
 
 You can create a new style like this:
 ```c
@@ -210,7 +211,7 @@ If an object's style is `NULL` then it will inherit its parent's style. For exam
 Learn more in [Style overview](https://docs.littlevgl.com/en/html/overview/style) section.
 
 ### Events
-Events are used to inform the user if something has happened with an object. You can assign a callback to an object which will be called if the object is clicked, released, dragged, being deleted etc. It should look like this: 
+Events are used to inform the user if something has happened with an object. You can assign a callback to an object which will be called if the object is clicked, released, dragged, being deleted etc. It should look like this:
 
 ```c
 lv_obj_set_event_cb(btn, btn_event_cb);                 /*Assign a callback to the button*/
@@ -225,10 +226,10 @@ void btn_event_cb(lv_obj_t * btn, lv_event_t event)
 }
 ```
 
-Learn more about the events in the [Event overview](https://docs.littlevgl.com/en/html/overview/event) section. 
+Learn more about the events in the [Event overview](https://docs.littlevgl.com/en/html/overview/event) section.
 
 
-## Examples 
+## Examples
 
 ### Button with label
 ```c
@@ -378,7 +379,7 @@ lv.scr_load(scr)
 
 ## Contributing
 To ask questions please use the [Forum](https://forum.littlevgl.com).
-For development-related things (bug reports, feature suggestions) use [GitHub's Issue tracker](https://github.com/littlevgl/lvgl/issues). 
+For development-related things (bug reports, feature suggestions) use [GitHub's Issue tracker](https://github.com/littlevgl/lvgl/issues).
 
 If you are interested in contributing to LittlevGL you can
 - **Help others** in the [Forum](https://forum.littlevgl.com).
