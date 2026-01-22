@@ -195,7 +195,12 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 
     LV_LOG_INFO("The framebuffer device was mapped to memory successfully");
 
+    unsigned extra_buf_size = 0;
     switch(dsc->vinfo.bits_per_pixel) {
+        case 1:
+            lv_display_set_color_format(disp, LV_COLOR_FORMAT_I1);
+            extra_buf_size = 8; // as per https://docs.lvgl.io/master/main-modules/display/color_format.html#display-monochrome
+            break;
         case 16:
             lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
             break;
@@ -213,7 +218,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     int32_t hor_res = dsc->vinfo.xres;
     int32_t ver_res = dsc->vinfo.yres;
     int32_t width = dsc->vinfo.width;
-    uint32_t draw_buf_size = hor_res * (dsc->vinfo.bits_per_pixel >> 3);
+    uint32_t draw_buf_size = (dsc->vinfo.bits_per_pixel * hor_res + 7) >> 3;
     if(LV_LINUX_FBDEV_RENDER_MODE == LV_DISPLAY_RENDER_MODE_PARTIAL) {
         draw_buf_size *= LV_LINUX_FBDEV_BUFFER_SIZE;
     }
@@ -223,14 +228,14 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 
     uint8_t * draw_buf = NULL;
     uint8_t * draw_buf_2 = NULL;
-    draw_buf = malloc(draw_buf_size);
+    draw_buf = malloc(draw_buf_size+extra_buf_size);
 
     if(LV_LINUX_FBDEV_BUFFER_COUNT == 2) {
-        draw_buf_2 = malloc(draw_buf_size);
+        draw_buf_2 = malloc(draw_buf_size+extra_buf_size);
     }
 
     lv_display_set_resolution(disp, hor_res, ver_res);
-    lv_display_set_buffers(disp, draw_buf, draw_buf_2, draw_buf_size, LV_LINUX_FBDEV_RENDER_MODE);
+    lv_display_set_buffers(disp, draw_buf, draw_buf_2, draw_buf_size+extra_buf_size, LV_LINUX_FBDEV_RENDER_MODE);
 
     if(width > 0) {
         lv_display_set_dpi(disp, DIV_ROUND_UP(hor_res * 254, width * 10));
@@ -250,6 +255,8 @@ void lv_linux_fbdev_set_force_refresh(lv_display_t * disp, bool enabled)
  *   STATIC FUNCTIONS
  **********************/
 
+static inline uint32_t bytes_rounded_up(uint32_t bits) { return (bits+7) >> 3; }
+
 static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * color_p)
 {
     lv_linux_fb_t * dsc = lv_display_get_driver_data(disp);
@@ -262,7 +269,10 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     int32_t w = lv_area_get_width(area);
     int32_t h = lv_area_get_height(area);
     lv_color_format_t cf = lv_display_get_color_format(disp);
-    uint32_t px_size = lv_color_format_get_size(cf);
+    uint32_t px_bits = lv_color_format_get_bpp(cf);
+    if (px_bits>=8) px_bits = lv_color_format_get_size(cf)<<3; // storage size is relevant for >=8bit formats only
+
+    if (px_bits==1) color_p+= 8; // as per https://docs.lvgl.io/master/main-modules/display/color_format.html#display-monochrome
 
     lv_area_t rotated_area;
     lv_display_rotation_t rotation = lv_display_get_rotation(disp);
@@ -270,7 +280,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     /* Not all framebuffer kernel drivers support hardware rotation, so we need to handle it in software here */
     if(rotation != LV_DISPLAY_ROTATION_0 && LV_LINUX_FBDEV_RENDER_MODE == LV_DISPLAY_RENDER_MODE_PARTIAL) {
         /* (Re)allocate temporary buffer if needed */
-        size_t buf_size = w * h * px_size;
+        size_t buf_size = w * h * px_bits;
         if(!dsc->rotated_buf || dsc->rotated_buf_size != buf_size) {
             dsc->rotated_buf = realloc(dsc->rotated_buf, buf_size);
             dsc->rotated_buf_size = buf_size;
@@ -313,28 +323,49 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     }
 
     uint32_t fb_pos =
-        (area->x1 + dsc->vinfo.xoffset) * px_size +
+        bytes_rounded_up((area->x1 + dsc->vinfo.xoffset) * px_bits) +
         (area->y1 + dsc->vinfo.yoffset) * dsc->finfo.line_length;
 
     uint8_t * fbp = (uint8_t *)dsc->fbp;
     int32_t y;
     if(LV_LINUX_FBDEV_RENDER_MODE == LV_DISPLAY_RENDER_MODE_DIRECT) {
-        uint32_t color_pos =
-            area->x1 * px_size +
-            area->y1 * disp->hor_res * px_size;
-
+        int32_t xbytes = bytes_rounded_up(w * px_bits);
+        uint32_t color_pos = bytes_rounded_up((area->x1 + area->y1 * disp->hor_res) * px_bits);
         for(y = area->y1; y <= area->y2; y++) {
-            lv_memcpy(&fbp[fb_pos], &color_p[color_pos], w * px_size);
+            if (px_bits==1) {
+                // need bit swapping
+                for (int32_t i = 0; i<xbytes; i++) {
+                    uint8_t bi = color_p[color_pos+i];
+                    uint8_t bo = 0;
+                    for (int j=0; j<8; j++) { bo = (bo<<1) | (bi & 0x01); bi >>= 1; }
+                    fbp[fb_pos+i] = bo;
+                }
+            }
+            else {
+                lv_memcpy(&fbp[fb_pos], &color_p[color_pos], xbytes);
+            }
             fb_pos += dsc->finfo.line_length;
-            color_pos += disp->hor_res * px_size;
+            color_pos += bytes_rounded_up(disp->hor_res * px_bits);
         }
     }
     else {
         w = lv_area_get_width(area);
+        int32_t xbytes = bytes_rounded_up(w * px_bits);
         for(y = area->y1; y <= area->y2; y++) {
-            lv_memcpy(&fbp[fb_pos], color_p, w * px_size);
+            if (px_bits==1) {
+                // need bit swapping
+                for (int32_t i = 0; i<xbytes; i++) {
+                    uint8_t bi = color_p[i];
+                    uint8_t bo = 0;
+                    for (int j=0; j<8; j++) { bo = (bo<<1) | (bi & 0x01); bi >>= 1; }
+                    fbp[fb_pos+i] = bo;
+                }
+            }
+            else {
+                lv_memcpy(&fbp[fb_pos], color_p, xbytes);
+            }
             fb_pos += dsc->finfo.line_length;
-            color_p += w * px_size;
+            color_p += xbytes;
         }
     }
 
