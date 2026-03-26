@@ -139,6 +139,14 @@ lv_display_t * lv_sdl_window_create(int32_t hor_res, int32_t ver_res)
     return disp;
 }
 
+void lv_sdl_window_set_position(lv_display_t * disp, int32_t x, int32_t y)
+{
+  lv_sdl_window_t * dsc = lv_display_get_driver_data(disp);
+  SDL_SetWindowPosition(dsc->window, x, y);
+}
+
+
+
 void lv_sdl_window_set_resizeable(lv_display_t * disp, bool value)
 {
     lv_sdl_window_t * dsc = lv_display_get_driver_data(disp);
